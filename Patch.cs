@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Mutagen.Bethesda.Pex;
 using Noggog;
 
@@ -88,7 +89,7 @@ struct InstMatch
                 return arg.VariableType switch
                 {
                     VariableType.Null => true,
-                    VariableType.Identifier or VariableType.String => arg.StringValue == x.dat.StringData,
+                    VariableType.Identifier or VariableType.String => new Regex(x.dat.StringData?? "NULL").IsMatch(arg.StringValue??"NULL2"),
                     VariableType.Integer => arg.IntValue == x.dat.IntData,
                     VariableType.Bool => arg.BoolValue == x.dat.BoolData,
                     _ => true,

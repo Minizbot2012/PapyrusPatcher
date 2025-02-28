@@ -12,8 +12,9 @@ internal class Program
         var settings = new JsonSerializerSettings();
         settings.AddMutagenConverters();
         Console.WriteLine(Directory.GetCurrentDirectory());
-        foreach (var pchFile in Directory.EnumerateFiles(Path.Join("SynPKGs", "PapyrusPatcher")))
+        foreach (var pchFile in Directory.GetFiles(Path.Join("SynPKGs", "PapyrusPatcher")))
         {
+            if(!pchFile.EndsWith(".json")) continue;
             Console.WriteLine($"Running {pchFile}");
             var conf = JsonConvert.DeserializeObject<Config>(File.ReadAllText($"{pchFile}"), settings);
             if (conf == null) return;
@@ -22,17 +23,18 @@ internal class Program
                 var scriptName = Path.Join("Scripts", file.FileName);
                 if (File.Exists(scriptName))
                 {
+                    Console.WriteLine($"Patching {scriptName}");
                     var pexed = PexFile.CreateFromFile(scriptName, Mutagen.Bethesda.GameCategory.Skyrim);
-                    if (pexed.MachineName == "PAPPATCHED")
+                    if (pexed.MachineName == "PEXPATCHED" || pexed.MachineName == "PAPPATCHED")
                     {
                         Console.WriteLine($"Papyrus file patched already, skipping {file.FileName}");
                         continue;
                     }
-                    pexed.MachineName = "PAPPATCHED";
+                    pexed.MachineName = "PEXPATCHED";
                     foreach (var state in file.states)
                     {
-                        var obj = pexed.Objects.Where(x => x.Name == state.Obj).First();
-                        var st = obj.States.Where(x => x.Name == state.State).First();
+                        var obj = pexed.Objects.Where(x => x.Name?.Equals(state.Obj, StringComparison.InvariantCultureIgnoreCase) ?? false).First();
+                        var st = obj.States.Where(x => x.Name?.Contains(state.State,StringComparison.InvariantCultureIgnoreCase)??false).First();
                         foreach (var patch in state.funcPatch)
                         {
                             var fn = st.Functions.Where(x => x.FunctionName == patch.FunctionName).First().Function;
@@ -87,9 +89,9 @@ internal class Program
                 {
                     Console.WriteLine($"Missing {scriptName}");
                 }
-                Console.WriteLine("Press any key to exit");
-                Console.In.Read();
             }
+            Console.WriteLine("Press any key to exit");
+            Console.In.Read();
         }
     }
 }
