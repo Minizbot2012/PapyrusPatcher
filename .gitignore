@@ -1,0 +1,5 @@
+Patch.json
+bin/
+obj/
+.vscode/
+Scripts/
