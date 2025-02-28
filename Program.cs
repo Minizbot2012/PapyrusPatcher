@@ -3,6 +3,7 @@ using Mutagen.Bethesda.Pex;
 using Mutagen.Bethesda.Json;
 using Newtonsoft.Json;
 using Noggog;
+using DynamicData;
 
 namespace PapyrusPatch;
 internal class Program
@@ -15,9 +16,9 @@ internal class Program
         foreach (var pchFile in Directory.GetFiles(Path.Join("SynPKGs", "PapyrusPatcher")))
         {
             if(!pchFile.EndsWith(".json")) continue;
-            Console.WriteLine($"Running {pchFile}");
             var conf = JsonConvert.DeserializeObject<Config>(File.ReadAllText($"{pchFile}"), settings);
-            if (conf == null) return;
+            if(conf.pxnName == string.Empty) continue;
+            Console.WriteLine($"Running {pchFile}");
             foreach (var file in conf.patches)
             {
                 var scriptName = Path.Join("Scripts", file.FileName);
@@ -25,12 +26,14 @@ internal class Program
                 {
                     Console.WriteLine($"Patching {scriptName}");
                     var pexed = PexFile.CreateFromFile(scriptName, Mutagen.Bethesda.GameCategory.Skyrim);
-                    if (pexed.MachineName == "PEXPATCHED" || pexed.MachineName == "PAPPATCHED")
+                    var pxns = pexed.MachineName.Split("-").ToHashSet();
+                    if (pxns.Contains(conf.pxnName))
                     {
                         Console.WriteLine($"Papyrus file patched already, skipping {file.FileName}");
                         continue;
                     }
-                    pexed.MachineName = "PEXPATCHED";
+                    pxns.Add(conf.pxnName);
+                    pexed.MachineName = string.Join("-", pxns);
                     foreach (var state in file.states)
                     {
                         var obj = pexed.Objects.Where(x => x.Name?.Equals(state.Obj, StringComparison.InvariantCultureIgnoreCase) ?? false).First();

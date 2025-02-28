@@ -163,7 +163,8 @@ struct PatchFile
     public string FileName;
     public List<PatchState> states;
 }
-class Config
+struct Config
 {
-    public List<PatchFile> patches = [];
+    public string pxnName;
+    public List<PatchFile> patches;
 }
