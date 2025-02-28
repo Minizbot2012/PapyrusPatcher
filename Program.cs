@@ -11,7 +11,7 @@ internal class Program
     {
         var settings = new JsonSerializerSettings();
         settings.AddMutagenConverters();
-        foreach (var pchFile in Directory.GetFiles("Patches/"))
+        foreach (var pchFile in Directory.GetFiles("SynPKGs/PapyrusPatcher"))
         {
             var conf = JsonConvert.DeserializeObject<Config>(File.ReadAllText(pchFile), settings);
             if (conf == null) return;
