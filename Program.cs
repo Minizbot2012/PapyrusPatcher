@@ -53,7 +53,6 @@ internal class Program
                                     foreach (var loc in pre)
                                     {
                                         var idx = fn.Instructions.IndexOf(loc);
-                                        Console.WriteLine(idx);
                                         var sdc = ins.pred.GetMatched(fn.Instructions[idx]);
                                         foreach (var inst in ins.instructions)
                                         {
