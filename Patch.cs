@@ -6,6 +6,7 @@ namespace PapyrusPatch;
 public struct VarData
 {
     public VariableType VariableType;
+    public string? SaveRecall;
     public string? StringData;
     public int? IntData;
     public bool? BoolData;
@@ -53,7 +54,14 @@ public static class ListExts
         ExtendedList<PexObjectVariableData> dat = [];
         foreach (var inf in data)
         {
-            dat.Add(inf.GetData());
+            if (inf.SaveRecall != null)
+            {
+                dat.Add(Program.memx[$"{inf.SaveRecall}"].Dequeue());
+            }
+            else
+            {
+                dat.Add(inf.GetData());
+            }
         }
         return dat;
     }
@@ -80,8 +88,8 @@ struct InstMatch
     public IEnumerable<IndexedVarData> data;
     public readonly bool IsInst(PexObjectFunctionInstruction inst)
     {
-        if(inst.Arguments.Count <= data.Max(x=>x.index)) return false;
-        return data.All(x =>
+        if (inst.Arguments.Count <= data.Max(x => x.index)) return false;
+        var ret = data.All(x =>
         {
             var arg = inst.Arguments[x.index];
             if (arg.VariableType == x.dat.VariableType)
@@ -89,7 +97,7 @@ struct InstMatch
                 return arg.VariableType switch
                 {
                     VariableType.Null => true,
-                    VariableType.Identifier or VariableType.String => new Regex(x.dat.StringData?? "NULL").IsMatch(arg.StringValue??"NULL2"),
+                    VariableType.Identifier or VariableType.String => new Regex(x.dat.StringData ?? "NULL").IsMatch(arg.StringValue ?? "NULL2"),
                     VariableType.Integer => arg.IntValue == x.dat.IntData,
                     VariableType.Bool => arg.BoolValue == x.dat.BoolData,
                     _ => true,
@@ -100,12 +108,27 @@ struct InstMatch
                 return false;
             }
         });
+        if (ret)
+        {
+            data.ForEach(x =>
+            {
+                if (x.dat.SaveRecall != null)
+                {
+                    if(Program.memx[$"{x.dat.SaveRecall}"] == null) {
+                        Program.memx[$"{x.dat.SaveRecall}"] = new();
+                    }
+                    Program.memx[$"{x.dat.SaveRecall}"].Enqueue(inst.Arguments[x.index]);
+                }
+            });
+        }
+        return ret;
     }
 }
 
 struct RewriteInstruction
 {
     public InstMatch pred;
+    public bool global;
     public InstructionOpcode newInst;
     public IEnumerable<VarData> args;
 }

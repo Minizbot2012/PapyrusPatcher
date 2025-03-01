@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Pex;
 using Mutagen.Bethesda.Json;
 using Newtonsoft.Json;
 using Noggog;
-using DynamicData;
 
 namespace PapyrusPatch;
 internal class Program
 {
+    public static Dictionary<string, Queue<PexObjectVariableData>> memx = [];
     static void Main(string[] args)
     {
         var settings = new JsonSerializerSettings();
@@ -15,12 +15,13 @@ internal class Program
         Console.WriteLine(Directory.GetCurrentDirectory());
         foreach (var pchFile in Directory.GetFiles(Path.Join("SynPKGs", "PapyrusPatcher")))
         {
-            if(!pchFile.EndsWith(".json")) continue;
+            if (!pchFile.EndsWith(".json")) continue;
             var conf = JsonConvert.DeserializeObject<Config>(File.ReadAllText($"{pchFile}"), settings);
-            if(conf.pxnName == string.Empty) continue;
+            if (conf.pxnName == string.Empty) continue;
             Console.WriteLine($"Running {pchFile}");
             foreach (var file in conf.patches)
             {
+                memx.Clear();
                 var scriptName = Path.Join("Scripts", file.FileName);
                 if (File.Exists(scriptName))
                 {
@@ -37,7 +38,7 @@ internal class Program
                     foreach (var state in file.states)
                     {
                         var obj = pexed.Objects.Where(x => x.Name?.Equals(state.Obj, StringComparison.InvariantCultureIgnoreCase) ?? false).First();
-                        var st = obj.States.Where(x => x.Name?.Contains(state.State,StringComparison.InvariantCultureIgnoreCase)??false).First();
+                        var st = obj.States.Where(x => x.Name?.Contains(state.State, StringComparison.InvariantCultureIgnoreCase) ?? false).First();
                         foreach (var patch in state.funcPatch)
                         {
                             var fn = st.Functions.Where(x => x.FunctionName == patch.FunctionName).First().Function;
@@ -65,11 +66,24 @@ internal class Program
                             {
                                 foreach (var rw in patch.rewrite)
                                 {
-                                    var pre = fn.Instructions.FindIndex(rw.pred.IsInst);
-                                    var instruction = fn.Instructions[pre];
-                                    instruction.Arguments.Clear();
-                                    instruction.OpCode = rw.newInst;
-                                    instruction.Arguments.AddRange(rw.args.GetData());
+                                    if (rw.global)
+                                    {
+                                        var instructions = fn.Instructions.FindAll(rw.pred.IsInst);
+                                        foreach (var inst in instructions)
+                                        {
+                                            inst.Arguments.Clear();
+                                            inst.OpCode = rw.newInst;
+                                            inst.Arguments.AddRange(rw.args.GetData());
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var pre = fn.Instructions.FindIndex(rw.pred.IsInst);
+                                        var instruction = fn.Instructions[pre];
+                                        instruction.Arguments.Clear();
+                                        instruction.OpCode = rw.newInst;
+                                        instruction.Arguments.AddRange(rw.args.GetData());
+                                    }
                                 }
                             }
                             if (patch.rwArgs != null)
