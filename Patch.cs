@@ -1,11 +1,12 @@
 using System.Text.RegularExpressions;
+using Mutagen.Bethesda.Oblivion;
 using Mutagen.Bethesda.Pex;
 using Noggog;
 
 namespace PapyrusPatch;
 public struct VarData
 {
-    public VariableType VariableType;
+    public VariableType? VarType;
     public string? SaveRecall;
     public string? StringData;
     public int? IntData;
@@ -13,7 +14,7 @@ public struct VarData
     public float? FloatData;
     public PexObjectVariableData GetData()
     {
-        return VariableType switch
+        return VarType switch
         {
             VariableType.Null => new()
             {
@@ -21,7 +22,7 @@ public struct VarData
             },
             VariableType.Identifier or VariableType.String => new()
             {
-                VariableType = VariableType,
+                VariableType = (VariableType)VarType,
                 StringValue = StringData,
             },
             VariableType.Integer => new()
@@ -49,14 +50,14 @@ public struct VarData
 
 public static class ListExts
 {
-    public static ExtendedList<PexObjectVariableData> GetData(this IEnumerable<VarData> data)
+    public static ExtendedList<PexObjectVariableData> GetData(this IEnumerable<VarData> data, IDictionary<string, PexObjectVariableData> sd)
     {
         ExtendedList<PexObjectVariableData> dat = [];
         foreach (var inf in data)
         {
             if (inf.SaveRecall != null)
             {
-                dat.Add(Program.memx[$"{inf.SaveRecall}"].Dequeue());
+                dat.Add(sd[inf.SaveRecall]);
             }
             else
             {
@@ -89,46 +90,47 @@ struct InstMatch
     public readonly bool IsInst(PexObjectFunctionInstruction inst)
     {
         if (inst.Arguments.Count <= data.Max(x => x.index)) return false;
-        var ret = data.All(x =>
+        return data.All(x =>
         {
-            var arg = inst.Arguments[x.index];
-            if (arg.VariableType == x.dat.VariableType)
+            if (x.dat.VarType != null)
             {
-                return arg.VariableType switch
+                var arg = inst.Arguments[x.index];
+                if (arg.VariableType == x.dat.VarType)
                 {
-                    VariableType.Null => true,
-                    VariableType.Identifier or VariableType.String => new Regex(x.dat.StringData ?? "NULL").IsMatch(arg.StringValue ?? "NULL2"),
-                    VariableType.Integer => arg.IntValue == x.dat.IntData,
-                    VariableType.Bool => arg.BoolValue == x.dat.BoolData,
-                    _ => true,
-                };
-            }
-            else
-            {
-                return false;
-            }
-        });
-        if (ret)
-        {
-            data.ForEach(x =>
-            {
-                if (x.dat.SaveRecall != null)
-                {
-                    if(Program.memx[$"{x.dat.SaveRecall}"] == null) {
-                        Program.memx[$"{x.dat.SaveRecall}"] = new();
-                    }
-                    Program.memx[$"{x.dat.SaveRecall}"].Enqueue(inst.Arguments[x.index]);
+                    return arg.VariableType switch
+                    {
+                        VariableType.Null => true,
+                        VariableType.Identifier or VariableType.String => new Regex(x.dat.StringData ?? "NULL1").IsMatch(arg.StringValue ?? "NULL2"),
+                        VariableType.Integer => arg.IntValue == x.dat.IntData,
+                        VariableType.Bool => arg.BoolValue == x.dat.BoolData,
+                        _ => true,
+                    };
                 }
-            });
+            }
+            else if (x.dat.SaveRecall != null)
+            {
+                return true;
+            }
+            return false;
+        });
+    }
+    public readonly Dictionary<string, PexObjectVariableData> GetMatched(PexObjectFunctionInstruction inst)
+    {
+        Dictionary<string, PexObjectVariableData> dict = [];
+        foreach (var x in data)
+        {
+            if (x.dat.SaveRecall != null)
+            {
+                dict[x.dat.SaveRecall] = inst.Arguments[x.index];
+            }
         }
-        return ret;
+        return dict;
     }
 }
 
 struct RewriteInstruction
 {
     public InstMatch pred;
-    public bool global;
     public InstructionOpcode newInst;
     public IEnumerable<VarData> args;
 }

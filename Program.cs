@@ -3,11 +3,11 @@ using Mutagen.Bethesda.Pex;
 using Mutagen.Bethesda.Json;
 using Newtonsoft.Json;
 using Noggog;
+using DynamicData;
 
 namespace PapyrusPatch;
 internal class Program
 {
-    public static Dictionary<string, Queue<PexObjectVariableData>> memx = [];
     static void Main(string[] args)
     {
         var settings = new JsonSerializerSettings();
@@ -21,7 +21,6 @@ internal class Program
             Console.WriteLine($"Running {pchFile}");
             foreach (var file in conf.patches)
             {
-                memx.Clear();
                 var scriptName = Path.Join("Scripts", file.FileName);
                 if (File.Exists(scriptName))
                 {
@@ -50,15 +49,20 @@ internal class Program
                             {
                                 foreach (var ins in patch.insert)
                                 {
-                                    var pre = fn.Instructions.FindIndex(ins.pred.IsInst);
-                                    foreach (var inst in ins.instructions)
+                                    var pre = fn.Instructions.FindAll(ins.pred.IsInst);
+                                    foreach (var loc in pre)
                                     {
-                                        fn.Instructions.Insert(pre, new PexObjectFunctionInstruction()
+                                        var idx = fn.Instructions.IndexOf(loc);
+                                        Console.WriteLine(idx);
+                                        var sdc = ins.pred.GetMatched(fn.Instructions[idx]);
+                                        foreach (var inst in ins.instructions)
                                         {
-                                            Arguments = inst.args.GetData(),
-                                            OpCode = inst.opCode
-                                        });
-                                        pre++;
+                                            fn.Instructions.Insert(idx++, new PexObjectFunctionInstruction()
+                                            {
+                                                Arguments = inst.args.GetData(sdc),
+                                                OpCode = inst.opCode
+                                            });
+                                        }
                                     }
                                 }
                             }
@@ -66,23 +70,13 @@ internal class Program
                             {
                                 foreach (var rw in patch.rewrite)
                                 {
-                                    if (rw.global)
+                                    var instructions = fn.Instructions.FindAll(rw.pred.IsInst);
+                                    foreach (var inst in instructions)
                                     {
-                                        var instructions = fn.Instructions.FindAll(rw.pred.IsInst);
-                                        foreach (var inst in instructions)
-                                        {
-                                            inst.Arguments.Clear();
-                                            inst.OpCode = rw.newInst;
-                                            inst.Arguments.AddRange(rw.args.GetData());
-                                        }
-                                    }
-                                    else
-                                    {
-                                        var pre = fn.Instructions.FindIndex(rw.pred.IsInst);
-                                        var instruction = fn.Instructions[pre];
-                                        instruction.Arguments.Clear();
-                                        instruction.OpCode = rw.newInst;
-                                        instruction.Arguments.AddRange(rw.args.GetData());
+                                        var sdc = rw.pred.GetMatched(inst);
+                                        inst.Arguments.Clear();
+                                        inst.OpCode = rw.newInst;
+                                        inst.Arguments.AddRange(rw.args.GetData(sdc));
                                     }
                                 }
                             }
@@ -90,11 +84,15 @@ internal class Program
                             {
                                 foreach (var rw in patch.rwArgs)
                                 {
-                                    var pre = fn.Instructions.FindIndex(rw.pred.IsInst);
-                                    var instruction = fn.Instructions[pre];
-                                    foreach (var arg in rw.args)
+                                    var pre = fn.Instructions.FindAll(rw.pred.IsInst);
+                                    foreach (var loc in pre)
                                     {
-                                        instruction.Arguments[arg.index] = arg.dat.GetData();
+                                        var rc = fn.Instructions.IndexOf(loc);
+                                        var instruction = fn.Instructions[rc];
+                                        foreach (var arg in rw.args)
+                                        {
+                                            instruction.Arguments[arg.index] = arg.dat.GetData();
+                                        }
                                     }
                                 }
                             }
@@ -107,8 +105,8 @@ internal class Program
                     Console.WriteLine($"Missing {scriptName}");
                 }
             }
-            Console.WriteLine("Press any key to exit");
-            Console.In.Read();
         }
+        Console.WriteLine("Press any key to exit");
+        Console.In.Read();
     }
 }
