@@ -3,7 +3,6 @@ using Mutagen.Bethesda.Pex;
 using Mutagen.Bethesda.Json;
 using Newtonsoft.Json;
 using Noggog;
-using DynamicData;
 
 namespace PapyrusPatch;
 internal class Program
