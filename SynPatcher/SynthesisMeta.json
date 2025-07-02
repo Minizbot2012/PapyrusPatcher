@@ -1,0 +1,11 @@
+{
+  "Nickname": "SynPEXPatcher",
+  "Visibility": "Visible",
+  "OneLineDescription": "Patches papyrus scripts in mods based upon configured files",
+  "LongDescription": "",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [],
+  "TargetedReleases": [
+    "SkyrimSE"
+  ]
+}
