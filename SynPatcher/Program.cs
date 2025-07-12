@@ -11,7 +11,6 @@ namespace SynPatcher;
 internal class Program
 {
     public static JsonSerializerSettings settings = new();
-    public static HashSet<string> ESDPs = [];
     static async Task<int> Main(string[] args)
     {
         return await SynthesisPipeline.Instance
@@ -23,11 +22,6 @@ internal class Program
     static void Patch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
     {
         var patched = new HashSet<string>();
-        if (!Directory.Exists(state.ExtraSettingsDataPath))
-        {
-            Directory.CreateDirectory(state.ExtraSettingsDataPath ?? "Data/SynPEXPatcher/");
-        }
-        ESDPs.Add("Data/SynPEXPatcher/");
         settings.AddMutagenConverters();
         settings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
         settings.NullValueHandling = NullValueHandling.Ignore;
@@ -72,7 +66,6 @@ internal class Program
                         }
                         patched.Add(file.FileName);
                         pexed = tmp;
-                        //File.WriteAllText(Path.Join(state.ExtraSettingsDataPath, $"{file.FileName}.{pexed.MachineName}.json"), JsonConvert.SerializeObject(pexed, settings));
                     }
                     else
                     {
@@ -104,10 +97,9 @@ internal class Program
                                     var mth = rewrites.replace.GetMatches(fn.Instructions);
                                     foreach (var itm in mth)
                                     {
-                                        var rw = rewrites.with.ToList();
                                         fn.Instructions.RemoveRange(offset + itm.Item1, itm.Item2);
-                                        fn.Instructions.InsertRange(offset + itm.Item1, rw);
-                                        offset += rw.Count - itm.Item2;
+                                        fn.Instructions.InsertRange(offset + itm.Item1, rewrites.with);
+                                        offset += rewrites.with.Count() - itm.Item2;
                                         Console.WriteLine($"OFFSET: {offset}, OC: {itm.Item1}, {itm.Item2}, NC ");
                                     }
                                 }
@@ -121,8 +113,8 @@ internal class Program
                                     {
                                         var idx = fn.Instructions.IndexOf(loc);
                                         var sdc = ins.pred.GetMatched(fn.Instructions[idx]);
-                                        ins.instructions.ForEach(x => x.Transform(sdc));
-                                        fn.Instructions.InsertRange(idx, ins.instructions);
+                                        var newInst = ins.instructions.Select(x => x.Transform(sdc));
+                                        fn.Instructions.InsertRange(idx, newInst);
                                     }
                                 }
                             }
@@ -135,8 +127,7 @@ internal class Program
                                     {
                                         var sdc = rw.pred.GetMatched(inst);
                                         var rwi = fn.Instructions.IndexOf(inst);
-                                        rw.newInst.Transform(sdc);
-                                        fn.Instructions[rwi] = rw.newInst;
+                                        fn.Instructions[rwi] = rw.newInst.Transform(sdc);
                                     }
                                 }
                             }

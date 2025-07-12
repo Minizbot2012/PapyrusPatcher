@@ -1,4 +1,3 @@
-using DynamicData;
 using Mutagen.Bethesda.Pex;
 using Noggog;
 
@@ -39,6 +38,25 @@ struct InstMatch
 
 static class Extensions
 {
+    public static Dictionary<string, PexObjectVariableData> GetMatched(this IEnumerable<PexObjectFunctionInstruction> insts)
+    {
+        Dictionary<string, PexObjectVariableData> dict = [];
+        foreach (var arg in insts.SelectMany(x => x.Arguments.Where(x => x.VariableType == VariableType.Null && x.StringValue != null).ToList()))
+        {
+            if (arg.StringValue != null)
+            {
+                if (dict.ContainsKey(arg.StringValue!))
+                {
+                    throw new Exception("Error duplicate key in matcher");
+                }
+                else
+                {
+                    dict[arg.StringValue] = arg.DeepCopy();
+                }
+            }
+        }
+        return dict;
+    }
     public static IEnumerable<(int, int)> GetMatches(this IEnumerable<InstMatch> matcher, IEnumerable<PexObjectFunctionInstruction> instructions)
     {
         var mlen = matcher.Count();
@@ -55,13 +73,19 @@ static class Extensions
         }
         return list;
     }
-    public static void Transform(this PexObjectFunctionInstruction inst, Dictionary<string, PexObjectVariableData> srd)
+    public static PexObjectFunctionInstruction Transform(this PexObjectFunctionInstruction inst, Dictionary<string, PexObjectVariableData> srd)
     {
-        var margs = inst.Arguments.Where(x => x.StringValue != null && x.VariableType == VariableType.Null).ToList();
+        var newInst = inst.DeepCopy();
+        var margs = inst.Arguments.Where(x => x.StringValue != null && x.VariableType == VariableType.Null);
         foreach (var arg in margs)
         {
-            inst.Arguments[inst.Arguments.IndexOf(arg)] = srd[arg.StringValue!];
+            newInst.Arguments[inst.Arguments.IndexOf(arg)] = srd[arg.StringValue!];
         }
+        return newInst;
+    }
+    public static IEnumerable<PexObjectFunctionInstruction> TransformList(this IEnumerable<PexObjectFunctionInstruction> instructions, Dictionary<string, PexObjectVariableData> srd)
+    {
+        return instructions.Select(x => x.Transform(srd));
     }
 }
 
