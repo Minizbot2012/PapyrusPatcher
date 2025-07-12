@@ -1,5 +1,4 @@
-Patch.json
-bin/
-obj/
-.vscode/
-Scripts/
+.vscode
+.vs
+*/bin/*
+*/obj/*
