@@ -149,8 +149,15 @@ internal class Program
                             }
                         }
                     }
+                    if (pexed.DebugInfo != null)
+                    {
+                        pexed.DebugInfo.Functions.Clear();
+                        pexed.DebugInfo.PropertyGroups.Clear();
+                        pexed.DebugInfo.StructOrders.Clear();
+                        pexed.DebugInfo.ModificationTime = DateTime.Now;
+                    }
+                    pexed.CompilationTime = DateTime.Now;
                     pexed.WritePexFile(scriptName, GameCategory.Skyrim);
-                    File.WriteAllText(Path.Join(state.ExtraSettingsDataPath, $"{file.FileName}.{pexed.MachineName}.json"), JsonConvert.SerializeObject(pexed, settings));
                 }
                 else
                 {
